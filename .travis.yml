@@ -1,5 +1,12 @@
 language: rust
-sudo: true
+sudo: false
+# necessary for `travis-cargo coveralls --no-sudo`
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
 rust:
 - nightly
 os:
@@ -7,17 +14,18 @@ os:
 
 env:
   global:
-  - secure: C2P1wLHzBxccS3jrimsG2TaDy4sAhYiKSq1g+cwYHhAKZKkiIpL7Ez5iEHH6BbEvvg4HiUJy4j0w83luZ/FXUuxkD2GZsXWoG+20DFBTLQvCJE/LPahVNbb5i+NdmyIsZPHLloXNvT63hXwu8KNV4U0hrYAgViIXkumoLnOiQD/jim81i7gxUOSe65AzMHcfPRaAwKHn+NGIvUfwMzU2hKZbnH/BPIi2PNtQ6e0VZEvAqA5Ad3hRV0YaBKZ3HZn8tr8UnHKmLbPffb/01EVWAFBU+rFMVYrdzDsiVp7UHMPtVV9aNXUVszB+a/ASWHsAZEdX8XsbmH9RSEBCzsUq2j2HFM2R7yYZnkL3FPcpf/ZKgy4ZVw6gKO42DCvBRGwhI1JMjeKBmrzCGZHE70FxD0zAZRwX9n9M7mUKhakzMvs/LSKMQKlOJslSR+OLEUpr3MCBthpKIiajNYDrJL5P/3KrFOF2R4H/2Z91/3osEIRqzYiEKdeJU01Yef5FCI+H6SLvbhIlVAQTM0IJKGAP0B2N6J4Ot7XrYuGDQag48oPzWzJ2dOGwYjwkda1rgW7pdjtWuullOi2ob1zdI6y/i/CdAS8AE0yRz7VCK4grwonUICzdVaaIAaTTd0yq9PRWAjSjZqNG5EOLADzABIihPnkBw4WygoDq18rSkk0pRbE=
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=nightly
+    - secure: C2P1wLHzBxccS3jrimsG2TaDy4sAhYiKSq1g+cwYHhAKZKkiIpL7Ez5iEHH6BbEvvg4HiUJy4j0w83luZ/FXUuxkD2GZsXWoG+20DFBTLQvCJE/LPahVNbb5i+NdmyIsZPHLloXNvT63hXwu8KNV4U0hrYAgViIXkumoLnOiQD/jim81i7gxUOSe65AzMHcfPRaAwKHn+NGIvUfwMzU2hKZbnH/BPIi2PNtQ6e0VZEvAqA5Ad3hRV0YaBKZ3HZn8tr8UnHKmLbPffb/01EVWAFBU+rFMVYrdzDsiVp7UHMPtVV9aNXUVszB+a/ASWHsAZEdX8XsbmH9RSEBCzsUq2j2HFM2R7yYZnkL3FPcpf/ZKgy4ZVw6gKO42DCvBRGwhI1JMjeKBmrzCGZHE70FxD0zAZRwX9n9M7mUKhakzMvs/LSKMQKlOJslSR+OLEUpr3MCBthpKIiajNYDrJL5P/3KrFOF2R4H/2Z91/3osEIRqzYiEKdeJU01Yef5FCI+H6SLvbhIlVAQTM0IJKGAP0B2N6J4Ot7XrYuGDQag48oPzWzJ2dOGwYjwkda1rgW7pdjtWuullOi2ob1zdI6y/i/CdAS8AE0yRz7VCK4grwonUICzdVaaIAaTTd0yq9PRWAjSjZqNG5EOLADzABIihPnkBw4WygoDq18rSkk0pRbE=
 
 before_script:
   - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
 
 script:
-- cargo build --verbose
-- cargo build --release --verbose
-- cargo test --verbose
-- cargo bench --verbose
-- cargo doc --verbose
+- travis-cargo build --verbose
+- travis-cargo build --release --verbose
+- travis-cargo test --verbose
+- travis-cargo bench --verbose
+- travis-cargo doc --verbose
 after_success:
 - |
   [ $TRAVIS_BRANCH = master ] &&
@@ -26,4 +34,4 @@ after_success:
   git clone --depth 1 https://github.com/davisp/ghp-import &&
   ./ghp-import/ghp-import -n target/doc &&
   git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
-- travis-cargo coveralls
+- travis-cargo coveralls --no-sudo
