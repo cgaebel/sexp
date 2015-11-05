@@ -10,6 +10,7 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
+use std::borrow::Cow;
 use std::fmt;
 use std::str::{self, FromStr};
 
@@ -213,10 +214,21 @@ pub fn parse(s: &str) -> Result<Sexp, ()> {
 // TODO: Pretty print in lisp convention, instead of all on the same line,
 // packed as tightly as possible. It's kinda ugly.
 
+fn quote(s: &str) -> Cow<str> {
+  if !s.contains("\"") {
+    Cow::Borrowed(s)
+  } else {
+    let mut r: String = "\"".to_string();
+    r.push_str(&s.replace("\\", "\\\\").replace("\"", "\\\""));
+    r.push_str("\"");
+    Cow::Owned(r)
+  }
+}
+
 impl fmt::Display for Atom {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
-      Atom::S(ref s) => write!(f, "{}", s),
+      Atom::S(ref s) => write!(f, "{}", quote(s)),
       Atom::I(i)     => write!(f, "{}", i),
     }
   }
@@ -254,7 +266,7 @@ fn test_escaping() {
 
 #[test]
 fn test_pp() {
-  let s = "(hello world (what is (up) (4 you)))";
+  let s = "(hello world (what is (up) (4 you \"123\\\\ \\\"\")))";
   let sexp = parse(s).unwrap();
   assert_eq!(s, sexp.to_string());
 }
