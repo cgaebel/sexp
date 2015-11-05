@@ -254,7 +254,7 @@ fn test_escaping() {
 
 #[test]
 fn test_pp() {
-  let s = "(hello world (what is (up) (with you)))";
+  let s = "(hello world (what is (up) (4 you)))";
   let sexp = parse(s).unwrap();
   assert_eq!(s, sexp.to_string());
 }
