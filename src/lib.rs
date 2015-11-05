@@ -246,6 +246,13 @@ fn test_hello_world() {
 }
 
 #[test]
+fn test_escaping() {
+  assert_eq!(
+    parse("(\"\\\"\\q\")"),
+    Ok(list(&[ atom_s("\"\\q") ])));
+}
+
+#[test]
 fn test_pp() {
   let s = "(hello world (what is (up) (with you)))";
   let sexp = parse(s).unwrap();
