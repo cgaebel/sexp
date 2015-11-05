@@ -1,14 +1,26 @@
+//! A lightweight, self-contained s-expression parser and data format.
 #![feature(str_char)]
+
+#![deny(missing_docs)]
+#![deny(unsafe_code)]
 
 use std::str::{self, FromStr};
 
-#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Debug)]
+/// A single data element in an s-expression. Floats are excluded to ensure
+/// atoms may be used as keys in ordered and hashed data structures.
+///
+/// All strings must be valid utf-8.
+#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Debug, Hash)]
+#[allow(missing_docs)]
 pub enum Atom {
-  S(Box<str>),
+  S(String),
   I(i64),
 }
 
-#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Debug)]
+/// An s-expression is either an atom or a list of s-expressions. This is
+/// similar to the data format used by lisp.
+#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Debug, Hash)]
+#[allow(missing_docs)]
 pub enum Sexp {
   Atom(Atom),
   List(Vec<Sexp>),
@@ -16,10 +28,13 @@ pub enum Sexp {
 
 #[test]
 fn sexp_size() {
+  // I just want to see when this changes, in the diff.
   use std::mem;
-  assert_eq!(mem::size_of::<Sexp>(), mem::size_of::<isize>()*4);
+  assert_eq!(mem::size_of::<Sexp>(), mem::size_of::<isize>()*5);
 }
 
+/// Helps clean up type signatures, but shouldn't be exposed to the outside
+/// world.
 type ERes<T> = Result<T, ()>;
 
 #[allow(unused_variables)]
@@ -31,9 +46,9 @@ fn atom_of_string(s: String) -> Atom {
   match FromStr::from_str(&s) {
     Ok(i)  => return Atom::I(i),
     Err(_) => {},
-  }
+  };
 
-  Atom::S(s.into_boxed_str())
+  Atom::S(s)
 }
 
 // returns the char it found, and the new size if you wish to consume that char
@@ -164,21 +179,22 @@ fn parse_sexp(s: &str, pos: &mut usize) -> ERes<Sexp> {
   r
 }
 
-#[allow(dead_code)]
+/// Constructs an atomic s-expression from a string.
 pub fn atom_s(s: &str) -> Sexp {
-  Sexp::Atom(Atom::S(s.to_owned().into_boxed_str()))
+  Sexp::Atom(Atom::S(s.to_owned()))
 }
 
-#[allow(dead_code)]
+/// Constructs an atomic s-expression from an int.
 pub fn atom_i(i: i64) -> Sexp {
   Sexp::Atom(Atom::I(i))
 }
 
-#[allow(dead_code)]
+/// Constructs a list s-expression given a slice of s-expressions.
 pub fn list(xs: &[Sexp]) -> Sexp {
   Sexp::List(xs.to_owned())
 }
 
+/// Reads an s-expression out of a `&str`. Returns `Err(())` on parse error.
 pub fn parse(s: &str) -> Result<Sexp, ()> {
   let mut pos = 0;
   let ret = try!(parse_sexp(s, &mut pos));
