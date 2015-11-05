@@ -1,6 +1,6 @@
 //! A lightweight, self-contained s-expression parser and data format.
 //! Use `parse` to get an s-expression from its string representation, and the
-//! `Display` trait to serialize it.
+//! `Display` trait to serialize it, potentially by doing `sexp.to_string()`.
 
 // Needed for `is_char_boundary` and `char_range_at`. I'd love to remove this
 // so that this library works on stable, but it involved a LOT of copy-paste
