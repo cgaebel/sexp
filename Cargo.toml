@@ -1,0 +1,4 @@
+[package]
+name = "sexp"
+version = "0.1.0"
+authors = ["Clark Gaebel <cg.wowus.cg@gmail.com>"]
