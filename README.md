@@ -7,7 +7,7 @@ A small, simple, self-contained, s-expression parser and pretty-printer.
 
 [![Build Status](https://travis-ci.org/cgaebel/sexp.svg?branch=master)](https://travis-ci.org/cgaebel/sexp)
 
-[![Code Coverage](https://img.shields.io/coveralls/cgaebel/sexp.svg)](https://coveralls.io/github/cgaebel/sexp)
+[![Coverage Status](https://coveralls.io/repos/cgaebel/sexp/badge.svg?branch=master&service=github)](https://coveralls.io/github/cgaebel/sexp?branch=master)
 
 Documentation
 -------------
