@@ -1,4 +1,8 @@
 //! A lightweight, self-contained s-expression parser and data format.
+
+// Needed for `is_char_boundary` and `char_range_at`. I'd love to remove this
+// so that this library works on stable, but it involved a LOT of copy-paste
+// from the standard library.
 #![feature(str_char)]
 
 #![deny(missing_docs)]
@@ -37,6 +41,8 @@ fn sexp_size() {
 /// world.
 type ERes<T> = Result<T, ()>;
 
+/// A helpful utility to trace the execution of a parser while testing.  It will
+/// be compiled out in release builds.
 #[allow(unused_variables)]
 fn dbg(msg: &str, pos: &usize) {
   //println!("{} @ {}", msg, pos)
