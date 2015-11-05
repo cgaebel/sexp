@@ -1,4 +1,6 @@
 //! A lightweight, self-contained s-expression parser and data format.
+//! Use `parse` to get an s-expression from its string representation, and the
+//! `Display` trait to serialize it.
 
 // Needed for `is_char_boundary` and `char_range_at`. I'd love to remove this
 // so that this library works on stable, but it involved a LOT of copy-paste
@@ -8,6 +10,7 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
+use std::fmt;
 use std::str::{self, FromStr};
 
 /// A single data element in an s-expression. Floats are excluded to ensure
@@ -207,9 +210,44 @@ pub fn parse(s: &str) -> Result<Sexp, ()> {
   if pos == s.len() { Ok(ret) } else { Err(()) }
 }
 
+// TODO: Pretty print in lisp convention, instead of all on the same line,
+// packed as tightly as possible. It's kinda ugly.
+
+impl fmt::Display for Atom {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    match *self {
+      Atom::S(ref s) => write!(f, "{}", s),
+      Atom::I(i)     => write!(f, "{}", i),
+    }
+  }
+}
+
+impl fmt::Display for Sexp {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    match *self {
+      Sexp::Atom(ref a) => write!(f, "{}", a),
+      Sexp::List(ref xs) => {
+        try!(write!(f, "("));
+        for (i, x) in xs.iter().enumerate() {
+          let s = if i == 0 { "" } else { " " };
+          try!(write!(f, "{}{}", s, x));
+        }
+        write!(f, ")")
+      },
+    }
+  }
+}
+
 #[test]
 fn test_hello_world() {
   assert_eq!(
     parse("(hello -42\n\t  \"world\") ; comment"),
     Ok(list(&[ atom_s("hello"), atom_i(-42), atom_s("world") ])));
+}
+
+#[test]
+fn test_pp() {
+  let s = "(hello world (what is (up) (with you)))";
+  let sexp = parse(s).unwrap();
+  assert_eq!(s, sexp.to_string());
 }
