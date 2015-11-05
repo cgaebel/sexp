@@ -2,3 +2,11 @@
 name = "sexp"
 version = "0.1.0"
 authors = ["Clark Gaebel <cg.wowus.cg@gmail.com>"]
+
+homepage = "https://github.com/cgaebel/sexp"
+repository = "https://github.com/cgaebel/sexp"
+
+description = "A small, simple, self-contained, s-expression parser."
+
+license = "MIT"
+license-file = "LICENSE"
