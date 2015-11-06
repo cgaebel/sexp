@@ -11,6 +11,8 @@
 #![deny(unsafe_code)]
 
 use std::borrow::Cow;
+use std::cmp;
+use std::error;
 use std::fmt;
 use std::str::{self, FromStr};
 
@@ -18,7 +20,7 @@ use std::str::{self, FromStr};
 /// atoms may be used as keys in ordered and hashed data structures.
 ///
 /// All strings must be valid utf-8.
-#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Debug, Hash)]
+#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Hash)]
 #[allow(missing_docs)]
 pub enum Atom {
   S(String),
@@ -27,7 +29,7 @@ pub enum Atom {
 
 /// An s-expression is either an atom or a list of s-expressions. This is
 /// similar to the data format used by lisp.
-#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Debug, Hash)]
+#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Hash)]
 #[allow(missing_docs)]
 pub enum Sexp {
   Atom(Atom),
@@ -41,9 +43,90 @@ fn sexp_size() {
   assert_eq!(mem::size_of::<Sexp>(), mem::size_of::<isize>()*5);
 }
 
+/// The representation of an s-expression parse error.
+pub struct Error {
+  /// The error message.
+  pub message: &'static str,
+  /// The line number on which the error occurred.
+  pub line:    usize,
+  /// The column number on which the error occurred.
+  pub column:  usize,
+  /// The index in the given string which caused the error.
+  pub index:   usize,
+}
+
+impl error::Error for Error {
+  fn description(&self) -> &str { self.message }
+  fn cause(&self) -> Option<&error::Error> { None }
+}
+
+/// Since errors are the uncommon case, they're boxed. This keeps the size of
+/// structs down, which helps performance in the common case.
+///
+/// For example, an `ERes<()>` becomes 8 bytes, instead of the 24 bytes it would
+/// be if `Err` were unboxed.
+type Err = Box<Error>;
+
 /// Helps clean up type signatures, but shouldn't be exposed to the outside
 /// world.
-type ERes<T> = Result<T, ()>;
+type ERes<T> = Result<T, Err>;
+
+impl fmt::Display for Error {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    write!(f, "{}:{}: {}", self.line, self.column, self.message)
+  }
+}
+
+impl fmt::Debug for Error {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    write!(f, "{}", self)
+  }
+}
+
+fn get_line_and_column(s: &str, pos: usize) -> (usize, usize) {
+  let mut line: usize = 1;
+  let mut col:  isize = -1;
+  for c in s.chars().take(pos+1) {
+    if c == '\n' {
+      line += 1;
+      col   = -1;
+    } else {
+      col  += 1;
+    }
+  }
+  (line, cmp::max(col, 0) as usize)
+}
+
+#[test]
+fn line_and_col_test() {
+  let s = "0123456789\n0123456789\n\n6";
+  assert_eq!(get_line_and_column(s, 4), (1, 4));
+
+  assert_eq!(get_line_and_column(s, 10), (2, 0));
+  assert_eq!(get_line_and_column(s, 11), (2, 0));
+  assert_eq!(get_line_and_column(s, 15), (2, 4));
+
+  assert_eq!(get_line_and_column(s, 21), (3, 0));
+  assert_eq!(get_line_and_column(s, 22), (4, 0));
+  assert_eq!(get_line_and_column(s, 23), (4, 0));
+  assert_eq!(get_line_and_column(s, 500), (4, 0));
+}
+
+
+#[cold]
+fn err_impl(message: &'static str, s: &str, pos: &usize) -> Err {
+  let (line, column) = get_line_and_column(s, *pos);
+  Box::new(Error {
+    message: message,
+    line:    line,
+    column:  column,
+    index:   *pos,
+  })
+}
+
+fn err<T>(message: &'static str, s: &str, pos: &usize) -> ERes<T> {
+  Err(err_impl(message, s, pos))
+}
 
 /// A helpful utility to trace the execution of a parser while testing.  It will
 /// be compiled out in release builds.
@@ -64,12 +147,12 @@ fn atom_of_string(s: String) -> Atom {
 // returns the char it found, and the new size if you wish to consume that char
 fn peek(s: &str, pos: &usize) -> ERes<(char, usize)> {
   dbg("peek", pos);
-  if *pos == s.len() { return Err(()) }
+  if *pos == s.len() { return err("unexpected eof", s, pos) }
   if s.is_char_boundary(*pos) {
     let str::CharRange { ch, next } = s.char_range_at(*pos);
     Ok((ch, next))
   } else {
-    Err(())
+    err("invalid utf-8 char", s, pos)
   }
 }
 
@@ -77,7 +160,7 @@ fn expect(s: &str, pos: &mut usize, c: char) -> ERes<()> {
   dbg("expect", pos);
   let (ch, next) = try!(peek(s, pos));
   *pos = next;
-  if ch == c { Ok(()) } else { Err(()) }
+  if ch == c { Ok(()) } else { err("unexpected character", s, pos) }
 }
 
 fn consume_until_newline(s: &str, pos: &mut usize) -> ERes<()> {
@@ -128,7 +211,8 @@ fn parse_quoted_atom(s: &str, pos: &mut usize) -> ERes<Atom> {
     }
   }
 
-  Ok(atom_of_string(cs))
+  // Do not try i64 conversion, since this atom was explicitly quoted.
+  Ok(Atom::S(cs))
 }
 
 fn parse_unquoted_atom(s: &str, pos: &mut usize) -> ERes<Atom> {
@@ -204,11 +288,11 @@ pub fn list(xs: &[Sexp]) -> Sexp {
   Sexp::List(xs.to_owned())
 }
 
-/// Reads an s-expression out of a `&str`. Returns `Err(())` on parse error.
-pub fn parse(s: &str) -> Result<Sexp, ()> {
+/// Reads an s-expression out of a `&str`.
+pub fn parse(s: &str) -> Result<Sexp, Box<Error>> {
   let mut pos = 0;
   let ret = try!(parse_sexp(s, &mut pos));
-  if pos == s.len() { Ok(ret) } else { Err(()) }
+  if pos == s.len() { Ok(ret) } else { err("unrecognized post-s-expression data", s, &pos) }
 }
 
 // TODO: Pretty print in lisp convention, instead of all on the same line,
@@ -250,18 +334,30 @@ impl fmt::Display for Sexp {
   }
 }
 
+impl fmt::Debug for Atom {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    write!(f, "{}", self)
+  }
+}
+
+impl fmt::Debug for Sexp {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    write!(f, "{}", self)
+  }
+}
+
 #[test]
 fn test_hello_world() {
   assert_eq!(
-    parse("(hello -42\n\t  \"world\") ; comment"),
-    Ok(list(&[ atom_s("hello"), atom_i(-42), atom_s("world") ])));
+    parse("(hello -42\n\t  \"world\") ; comment").unwrap(),
+    list(&[ atom_s("hello"), atom_i(-42), atom_s("world") ]));
 }
 
 #[test]
 fn test_escaping() {
   assert_eq!(
-    parse("(\"\\\"\\q\")"),
-    Ok(list(&[ atom_s("\"\\q") ])));
+    parse("(\"\\\"\\q\")").unwrap(),
+    list(&[ atom_s("\"\\q") ]));
 }
 
 #[test]
