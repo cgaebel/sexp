@@ -83,6 +83,11 @@ impl fmt::Debug for Error {
   }
 }
 
+#[test]
+fn show_an_error() {
+  assert_eq!(format!("{:?}", parse("(aaaa").unwrap_err()), "1:4: unexpected eof");
+}
+
 fn get_line_and_column(s: &str, pos: usize) -> (usize, usize) {
   let mut line: usize = 1;
   let mut col:  isize = -1;
@@ -111,7 +116,6 @@ fn line_and_col_test() {
   assert_eq!(get_line_and_column(s, 23), (4, 0));
   assert_eq!(get_line_and_column(s, 500), (4, 0));
 }
-
 
 #[cold]
 fn err_impl(message: &'static str, s: &str, pos: &usize) -> Err {
