@@ -294,6 +294,7 @@ pub fn list(xs: &[Sexp]) -> Sexp {
 }
 
 /// Reads an s-expression out of a `&str`.
+#[inline(never)]
 pub fn parse(s: &str) -> Result<Sexp, Box<Error>> {
   let mut pos = 0;
   let ret = try!(parse_sexp(s, &mut pos));
