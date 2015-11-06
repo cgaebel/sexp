@@ -20,16 +20,17 @@ use std::str::{self, FromStr};
 /// atoms may be used as keys in ordered and hashed data structures.
 ///
 /// All strings must be valid utf-8.
-#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Hash)]
+#[derive(PartialEq, Clone, PartialOrd)]
 #[allow(missing_docs)]
 pub enum Atom {
   S(String),
   I(i64),
+  F(f64),
 }
 
 /// An s-expression is either an atom or a list of s-expressions. This is
 /// similar to the data format used by lisp.
-#[derive(Eq, Ord, PartialEq, Clone, PartialOrd, Hash)]
+#[derive(PartialEq, Clone, PartialOrd)]
 #[allow(missing_docs)]
 pub enum Sexp {
   Atom(Atom),
@@ -142,6 +143,11 @@ fn dbg(msg: &str, pos: &usize) {
 fn atom_of_string(s: String) -> Atom {
   match FromStr::from_str(&s) {
     Ok(i)  => return Atom::I(i),
+    Err(_) => {},
+  };
+
+  match FromStr::from_str(&s) {
+    Ok(f) => return Atom::F(f),
     Err(_) => {},
   };
 
@@ -288,6 +294,11 @@ pub fn atom_i(i: i64) -> Sexp {
   Sexp::Atom(Atom::I(i))
 }
 
+/// Constructs an atomic s-expression from a float.
+pub fn atom_f(f: f64) -> Sexp {
+  Sexp::Atom(Atom::F(f))
+}
+
 /// Constructs a list s-expression given a slice of s-expressions.
 pub fn list(xs: &[Sexp]) -> Sexp {
   Sexp::List(xs.to_owned())
@@ -304,13 +315,14 @@ pub fn parse(s: &str) -> Result<Sexp, Box<Error>> {
 // TODO: Pretty print in lisp convention, instead of all on the same line,
 // packed as tightly as possible. It's kinda ugly.
 
-fn is_int_string(s: &str) -> bool {
+fn is_num_string(s: &str) -> bool {
   let x: Result<i64, _> = FromStr::from_str(&s);
-  x.is_ok()
+  let y: Result<f64, _> = FromStr::from_str(&s);
+  x.is_ok() || y.is_ok()
 }
 
 fn quote(s: &str) -> Cow<str> {
-  if !s.contains("\"") && !is_int_string(s) {
+  if !s.contains("\"") && !is_num_string(s) {
     Cow::Borrowed(s)
   } else {
     let mut r: String = "\"".to_string();
@@ -325,6 +337,7 @@ impl fmt::Display for Atom {
     match *self {
       Atom::S(ref s) => write!(f, "{}", quote(s)),
       Atom::I(i)     => write!(f, "{}", i),
+      Atom::F(d)     => write!(f, "{}", d),
     }
   }
 }
@@ -360,8 +373,8 @@ impl fmt::Debug for Sexp {
 #[test]
 fn test_hello_world() {
   assert_eq!(
-    parse("(hello -42\n\t  \"world\") ; comment").unwrap(),
-    list(&[ atom_s("hello"), atom_i(-42), atom_s("world") ]));
+    parse("(hello -42\n\t  -4.0 \"world\") ; comment").unwrap(),
+    list(&[ atom_s("hello"), atom_i(-42), atom_f(-4.0), atom_s("world") ]));
 }
 
 #[test]
@@ -373,7 +386,7 @@ fn test_escaping() {
 
 #[test]
 fn test_pp() {
-  let s = "(hello world (what is (up) (4 you \"123\\\\ \\\"\")))";
+  let s = "(hello world (what is (up) (4 6.4 you \"123\\\\ \\\"\")))";
   let sexp = parse(s).unwrap();
   assert_eq!(s, sexp.to_string());
   assert_eq!(s, format!("{:?}", sexp));
