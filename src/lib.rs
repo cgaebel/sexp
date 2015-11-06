@@ -156,7 +156,8 @@ fn peek(s: &str, pos: &usize) -> ERes<(char, usize)> {
     let str::CharRange { ch, next } = s.char_range_at(*pos);
     Ok((ch, next))
   } else {
-    err("invalid utf-8 char", s, pos)
+    // strings must be composed of valid utf-8 chars.
+    unreachable!()
   }
 }
 
@@ -369,4 +370,5 @@ fn test_pp() {
   let s = "(hello world (what is (up) (4 you \"123\\\\ \\\"\")))";
   let sexp = parse(s).unwrap();
   assert_eq!(s, sexp.to_string());
+  assert_eq!(s, format!("{:?}", sexp));
 }
