@@ -304,8 +304,13 @@ pub fn parse(s: &str) -> Result<Sexp, Box<Error>> {
 // TODO: Pretty print in lisp convention, instead of all on the same line,
 // packed as tightly as possible. It's kinda ugly.
 
+fn is_int_string(s: &str) -> bool {
+  let x: Result<i64, _> = FromStr::from_str(&s);
+  x.is_ok()
+}
+
 fn quote(s: &str) -> Cow<str> {
-  if !s.contains("\"") {
+  if !s.contains("\"") && !is_int_string(s) {
     Cow::Borrowed(s)
   } else {
     let mut r: String = "\"".to_string();
@@ -362,8 +367,8 @@ fn test_hello_world() {
 #[test]
 fn test_escaping() {
   assert_eq!(
-    parse("(\"\\\"\\q\")").unwrap(),
-    list(&[ atom_s("\"\\q") ]));
+    parse("(\"\\\"\\q\" \"1234\" 1234)").unwrap(),
+    list(&[ atom_s("\"\\q"), atom_s("1234"), atom_i(1234) ]));
 }
 
 #[test]
