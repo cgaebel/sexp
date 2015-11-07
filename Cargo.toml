@@ -1,6 +1,6 @@
 [package]
 name = "sexp"
-version = "1.1.1"
+version = "1.1.2"
 authors = ["Clark Gaebel <cg.wowus.cg@gmail.com>"]
 
 documentation = "https://cgaebel.github.io/sexp"
