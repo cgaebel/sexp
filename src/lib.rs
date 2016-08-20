@@ -2,11 +2,6 @@
 //! Use `parse` to get an s-expression from its string representation, and the
 //! `Display` trait to serialize it, potentially by doing `sexp.to_string()`.
 
-// Needed for `is_char_boundary` and `char_range_at`. I'd love to remove this
-// so that this library works on stable, but it involved a LOT of copy-paste
-// from the standard library.
-#![feature(str_char)]
-
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
@@ -159,7 +154,8 @@ fn peek(s: &str, pos: &usize) -> ERes<(char, usize)> {
   dbg("peek", pos);
   if *pos == s.len() { return err("unexpected eof", s, pos) }
   if s.is_char_boundary(*pos) {
-    let str::CharRange { ch, next } = s.char_range_at(*pos);
+    let ch = s[*pos..].chars().next().unwrap();
+    let next = *pos + ch.len_utf8();
     Ok((ch, next))
   } else {
     // strings must be composed of valid utf-8 chars.
