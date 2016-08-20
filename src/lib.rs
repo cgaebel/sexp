@@ -231,7 +231,7 @@ fn parse_unquoted_atom(s: &str, pos: &mut usize) -> ERes<Atom> {
     let (c, next) = try!(peek(s, pos));
 
     if c == ';' { try!(consume_until_newline(s, pos)); break }
-    if c.is_whitespace() || c == ')' { break }
+    if c.is_whitespace() || c == '(' || c == ')' { break }
     cs.push(c);
     *pos = next;
   }
@@ -386,4 +386,15 @@ fn test_pp() {
   let sexp = parse(s).unwrap();
   assert_eq!(s, sexp.to_string());
   assert_eq!(s, format!("{:?}", sexp));
+}
+
+#[test]
+fn test_tight_parens() {
+    let s = "(hello(world))";
+    let sexp = parse(s).unwrap();
+    assert_eq!(sexp, Sexp::List(vec![Sexp::Atom(Atom::S("hello".into())),
+                                     Sexp::List(vec![Sexp::Atom(Atom::S("world".into()))])]));
+    let s = "(this (has)tight(parens))";
+    let s2 = "( this ( has ) tight ( parens ) )";
+    assert_eq!(parse(s).unwrap(), parse(s2).unwrap());
 }
