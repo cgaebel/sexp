@@ -317,8 +317,17 @@ fn is_num_string(s: &str) -> bool {
   x.is_ok() || y.is_ok()
 }
 
+fn string_contains_whitespace(s: &str) -> bool {
+  for c in s.chars() {
+    if c.is_whitespace() { return true }
+  }
+  false
+}
+
 fn quote(s: &str) -> Cow<str> {
-  if !s.contains("\"") && !is_num_string(s) {
+  if !s.contains("\"")
+  && !string_contains_whitespace(s)
+  && !is_num_string(s) {
     Cow::Borrowed(s)
   } else {
     let mut r: String = "\"".to_string();
@@ -397,4 +406,12 @@ fn test_tight_parens() {
     let s = "(this (has)tight(parens))";
     let s2 = "( this ( has ) tight ( parens ) )";
     assert_eq!(parse(s).unwrap(), parse(s2).unwrap());
+}
+
+#[test]
+fn test_space_in_atom() {
+  let sexp = list(&[ atom_s("hello world")]);
+  let sexp_as_string = sexp.to_string();
+  assert_eq!("(\"hello world\")", sexp_as_string);
+  assert_eq!(sexp, parse(&sexp_as_string).unwrap());
 }
