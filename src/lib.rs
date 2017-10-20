@@ -290,7 +290,7 @@ pub fn atom_s(s: &str) -> Sexp {
   Sexp::Atom(Atom::S(s.to_owned()))
 }
 
-/// Constructs an atomic s-expression from a keyword.
+/// Constructs an atomic s-expression (keyword) from a string.
 pub fn atom_k(k: &str) -> Sexp {
   Sexp::Atom(Atom::K(k.to_owned()))
 }
