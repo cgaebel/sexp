@@ -19,6 +19,7 @@ use std::str::{self, FromStr};
 #[allow(missing_docs)]
 pub enum Atom {
   S(String),
+  K(String),
   I(i64),
   F(f64),
 }
@@ -146,6 +147,10 @@ fn atom_of_string(s: String) -> Atom {
     Err(_) => {},
   };
 
+  if s.starts_with(":") {
+    return Atom::K(s)
+  }
+    
   Atom::S(s)
 }
 
@@ -285,6 +290,11 @@ pub fn atom_s(s: &str) -> Sexp {
   Sexp::Atom(Atom::S(s.to_owned()))
 }
 
+/// Constructs an atomic s-expression from a keyword.
+pub fn atom_k(k: &str) -> Sexp {
+  Sexp::Atom(Atom::K(k.to_owned()))
+}
+
 /// Constructs an atomic s-expression from an int.
 pub fn atom_i(i: i64) -> Sexp {
   Sexp::Atom(Atom::I(i))
@@ -341,6 +351,7 @@ impl fmt::Display for Atom {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
       Atom::S(ref s) => write!(f, "{}", quote(s)),
+      Atom::K(ref k) => write!(f, ":{}", k),  
       Atom::I(i)     => write!(f, "{}", i),
       Atom::F(d)     => write!(f, "{}", d),
     }
@@ -388,6 +399,14 @@ fn test_escaping() {
     parse("(\"\\\"\\q\" \"1234\" 1234)").unwrap(),
     list(&[ atom_s("\"\\q"), atom_s("1234"), atom_i(1234) ]));
 }
+
+#[test]
+fn test_keyword() {
+  assert_eq!(
+    parse("(:key)").unwrap(),
+    list(&[ atom_k(":key") ]));
+}
+
 
 #[test]
 fn test_pp() {
