@@ -19,6 +19,8 @@ use std::str::{self, FromStr};
 #[allow(missing_docs)]
 pub enum Atom {
   S(String),
+  Y(String),
+  K(String),
   I(i64),
   F(f64),
 }
@@ -146,7 +148,16 @@ fn atom_of_string(s: String) -> Atom {
     Err(_) => {},
   };
 
-  Atom::S(s)
+  if s.starts_with(":") && s.len() > 1 {
+    let v: Vec<char> = s.chars().collect();
+    return Atom::K(v[1..].into_iter().collect())
+  }
+
+  if s.starts_with("\"") {
+    return Atom::S(s)
+  }
+
+  Atom::Y(s)
 }
 
 // returns the char it found, and the new size if you wish to consume that char
@@ -285,6 +296,16 @@ pub fn atom_s(s: &str) -> Sexp {
   Sexp::Atom(Atom::S(s.to_owned()))
 }
 
+/// Constructs an atomic s-expression (symbol) from a string.
+pub fn atom_y(y: &str) -> Sexp {
+  Sexp::Atom(Atom::Y(y.to_owned()))
+}
+
+/// Constructs an atomic s-expression (keyword) from a string.
+pub fn atom_k(k: &str) -> Sexp {
+  Sexp::Atom(Atom::K(k.to_owned()))
+}
+
 /// Constructs an atomic s-expression from an int.
 pub fn atom_i(i: i64) -> Sexp {
   Sexp::Atom(Atom::I(i))
@@ -341,6 +362,8 @@ impl fmt::Display for Atom {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
       Atom::S(ref s) => write!(f, "{}", quote(s)),
+      Atom::Y(ref y) => write!(f, "{}", y),  
+      Atom::K(ref k) => write!(f, ":{}", k),        
       Atom::I(i)     => write!(f, "{}", i),
       Atom::F(d)     => write!(f, "{}", d),
     }
@@ -379,7 +402,7 @@ impl fmt::Debug for Sexp {
 fn test_hello_world() {
   assert_eq!(
     parse("(hello -42\n\t  -4.0 \"world\") ; comment").unwrap(),
-    list(&[ atom_s("hello"), atom_i(-42), atom_f(-4.0), atom_s("world") ]));
+    list(&[ atom_y("hello"), atom_i(-42), atom_f(-4.0), atom_s("world") ]));
 }
 
 #[test]
@@ -387,6 +410,20 @@ fn test_escaping() {
   assert_eq!(
     parse("(\"\\\"\\q\" \"1234\" 1234)").unwrap(),
     list(&[ atom_s("\"\\q"), atom_s("1234"), atom_i(1234) ]));
+}
+
+#[test]
+fn test_keyword() {
+  assert_eq!(
+    parse("(:key)").unwrap(),
+    list(&[ atom_k("key") ]));
+}
+
+#[test]
+fn test_symbol() {
+  assert_eq!(
+    parse("(sym)").unwrap(),
+    list(&[ atom_y("sym") ]));
 }
 
 #[test]
@@ -401,8 +438,8 @@ fn test_pp() {
 fn test_tight_parens() {
     let s = "(hello(world))";
     let sexp = parse(s).unwrap();
-    assert_eq!(sexp, Sexp::List(vec![Sexp::Atom(Atom::S("hello".into())),
-                                     Sexp::List(vec![Sexp::Atom(Atom::S("world".into()))])]));
+    assert_eq!(sexp, Sexp::List(vec![Sexp::Atom(Atom::Y("hello".into())),
+                                     Sexp::List(vec![Sexp::Atom(Atom::Y("world".into()))])]));
     let s = "(this (has)tight(parens))";
     let s2 = "( this ( has ) tight ( parens ) )";
     assert_eq!(parse(s).unwrap(), parse(s2).unwrap());
