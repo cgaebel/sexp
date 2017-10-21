@@ -148,15 +148,16 @@ fn atom_of_string(s: String) -> Atom {
     Err(_) => {},
   };
 
-  if s.starts_with(":") {
-    return Atom::K(s)
+  if s.starts_with(":") && s.len() > 1 {
+    let v: Vec<char> = s.chars().collect();
+    return Atom::K(v[1..].into_iter().collect())
   }
 
   if s.starts_with("\"") {
     return Atom::S(s)
   }
 
-  Atom::Y(s)  
+  Atom::Y(s)
 }
 
 // returns the char it found, and the new size if you wish to consume that char
@@ -415,7 +416,7 @@ fn test_escaping() {
 fn test_keyword() {
   assert_eq!(
     parse("(:key)").unwrap(),
-    list(&[ atom_k(":key") ]));
+    list(&[ atom_k("key") ]));
 }
 
 #[test]
