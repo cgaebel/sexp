@@ -308,9 +308,6 @@ pub fn parse(s: &str) -> Result<Sexp, Box<Error>> {
   if pos == s.len() { Ok(ret) } else { err("unrecognized post-s-expression data", s, &pos) }
 }
 
-// TODO: Pretty print in lisp convention, instead of all on the same line,
-// packed as tightly as possible. It's kinda ugly.
-
 fn is_num_string(s: &str) -> bool {
   let x: Result<i64, _> = FromStr::from_str(&s);
   let y: Result<f64, _> = FromStr::from_str(&s);
@@ -337,6 +334,48 @@ fn quote(s: &str) -> Cow<str> {
   }
 }
 
+
+fn write_sexp_indented(f: &mut fmt::Formatter, sexp: &Sexp, indentation: Option<usize>) -> Result<(), fmt::Error> {
+  match *sexp {
+    Sexp::Atom(ref a) => write!(f, "{}", a),
+    Sexp::List(ref xs) => {
+      match indentation {
+        Some(level) => try!(write!(f, "{:width$}", "", width = level * 2)),
+        None => {}
+      };
+      try!(write!(f, "("));
+      let mut nested_sexp = false;
+      for (i, x) in xs.iter().enumerate() {
+        if i > 0 {
+          if let (Some(_), Sexp::List(_)) = (indentation, x) {
+            try!(write!(f, "\n"));
+            nested_sexp = true;
+          } else {
+            try!(write!(f, " "));
+          }
+        }
+        try!(write_sexp_indented(f, x, indentation.map(|level| level + 1)));
+      }
+      match indentation {
+        Some(level) if nested_sexp => try!(write!(f, "\n{:width$}", "", width = level * 2)),
+        _ => {}
+      }
+      write!(f, ")")
+    }
+  }
+}
+
+struct SexpPretty<'a>(&'a Sexp);
+
+impl Sexp {
+  /// Returns an object that implements Display for pretty printing sexps.
+  ///
+  /// Each sexp begins on a new line and uses an indentation of two spaces.
+  pub fn pretty(&self) -> impl fmt::Display + '_ {
+    SexpPretty(self)
+  }
+}
+
 impl fmt::Display for Atom {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     match *self {
@@ -349,17 +388,13 @@ impl fmt::Display for Atom {
 
 impl fmt::Display for Sexp {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-    match *self {
-      Sexp::Atom(ref a) => write!(f, "{}", a),
-      Sexp::List(ref xs) => {
-        try!(write!(f, "("));
-        for (i, x) in xs.iter().enumerate() {
-          let s = if i == 0 { "" } else { " " };
-          try!(write!(f, "{}{}", s, x));
-        }
-        write!(f, ")")
-      },
-    }
+    write_sexp_indented(f, self, None)
+  }
+}
+
+impl<'a> fmt::Display for SexpPretty<'a> {
+  fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    write_sexp_indented(f, self.0, Some(0))
   }
 }
 
@@ -371,7 +406,11 @@ impl fmt::Debug for Atom {
 
 impl fmt::Debug for Sexp {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-    write!(f, "{}", self)
+    if f.alternate() {
+      write!(f, "{}", self.pretty())
+    } else {
+      write!(f, "{}", self)
+    }
   }
 }
 
@@ -395,6 +434,21 @@ fn test_pp() {
   let sexp = parse(s).unwrap();
   assert_eq!(s, sexp.to_string());
   assert_eq!(s, format!("{:?}", sexp));
+}
+
+
+#[test]
+fn test_pp_indentation() {
+  let s = "(hello world
+  (what is
+    (up)
+    (4 6.4 you \"123\\\\ \\\"\")
+  )
+)";
+  let sexp = parse(s).unwrap();
+  assert_eq!(s, format!("{}", sexp.pretty()));
+  assert_eq!(s, format!("{:#?}", sexp));
+  assert_eq!(sexp, parse(&format!("{}", sexp.pretty())).unwrap());
 }
 
 #[test]
