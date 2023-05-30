@@ -121,7 +121,7 @@ impl Sexp {
 
   /// Return the atom contained in this s-expression, panic if it is a list.
   pub fn atom(&self) -> &Atom {
-    self.try_atom().expect("not an atom")
+    self.try_atom().expect(&format!("Expecting an atom, got: {}", self))
   }
 
   /// Try to return the atom contained in this s-expression, or None if it is a
@@ -134,7 +134,7 @@ impl Sexp {
 
   /// Return the list contained in this s-expression, panic if it is an atom.
   pub fn list(&self) -> &Vec<Sexp> {
-    self.try_list().expect("not a list")
+    self.try_list().expect(&format!("Expecting a list, got: {}", self))
   }
 
   /// Try to return the list contained in this s-expression, or None if it is an
