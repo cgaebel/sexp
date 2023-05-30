@@ -23,6 +23,76 @@ pub enum Atom {
   F(f64),
 }
 
+
+impl Atom {
+  /// Returns true if this atom is a string.
+  pub fn is_string(&self) -> bool {
+    match self {
+      &Atom::S(_) => true,
+      _           => false,
+    }
+  }
+
+  /// Returns true if this atom is an integer.
+  pub fn is_int(&self) -> bool {
+    match self {
+      &Atom::I(_) => true,
+      _           => false,
+    }
+  }
+
+  /// Returns true if this atom is a float.
+  pub fn is_float(&self) -> bool {
+    match self {
+      &Atom::F(_) => true,
+      _           => false,
+    }
+  }
+
+  /// Return the string contained in this atom, panic if it is not a string.
+  pub fn string(&self) -> &str {
+    self.try_string().expect("not a string")
+  }
+
+  /// Try to return the string contained in this atom, or None if it is not a
+  /// string.
+  pub fn try_string(&self) -> Option<&str> {
+    match self {
+      &Atom::S(ref s) => Some(s),
+      _               => None,
+    }
+  }
+
+  /// Return the integer contained in this atom, panic if it is not an integer.
+  pub fn int(&self) -> i64 {
+    self.try_int().expect("not an int")
+  }
+
+  /// Try to return the integer contained in this atom, or None if it is not an
+  /// integer.
+  pub fn try_int(&self) -> Option<i64> {
+    match self {
+      &Atom::I(i) => Some(i),
+      _           => None,
+    }
+  }
+
+  /// Return the float contained in this atom, panic if it is not a float.
+  pub fn float(&self) -> f64 {
+    self.try_float().expect("not a float")
+  }
+
+  /// Try to return the float contained in this atom, or None if it is not a
+  /// float.
+  pub fn try_float(&self) -> Option<f64> {
+    match self {
+      &Atom::F(f) => Some(f),
+      _           => None,
+    }
+  }
+}
+
+
 /// An s-expression is either an atom or a list of s-expressions. This is
 /// similar to the data format used by lisp.
 #[derive(PartialEq, Clone, PartialOrd)]
@@ -30,6 +100,51 @@ pub enum Atom {
 pub enum Sexp {
   Atom(Atom),
   List(Vec<Sexp>),
+}
+
+impl Sexp {
+  /// Returns true if this s-expression is an atom.
+  pub fn is_atom(&self) -> bool {
+    match self {
+      Sexp::Atom(_) => true,
+      _             => false,
+    }
+  }
+
+  /// Returns true if this s-expression is a list.
+  pub fn is_list(&self) -> bool {
+    match *self {
+      Sexp::List(_) => true,
+      _             => false,
+    }
+  }
+
+  /// Return the atom contained in this s-expression, panic if it is a list.
+  pub fn atom(&self) -> &Atom {
+    self.try_atom().expect("not an atom")
+  }
+
+  /// Try to return the atom contained in this s-expression, or None if it is a
+  pub fn try_atom(&self) -> Option<&Atom> {
+    match self {
+      &Sexp::Atom(ref a) => Some(a),
+      _                  => None,
+    }
+  }
+
+  /// Return the list contained in this s-expression, panic if it is an atom.
+  pub fn list(&self) -> &Vec<Sexp> {
+    self.try_list().expect("not a list")
+  }
+
+  /// Try to return the list contained in this s-expression, or None if it is an
+  /// atom.
+  pub fn try_list(&self) -> Option<&Vec<Sexp>> {
+    match self {
+      &Sexp::List(ref l) => Some(l),
+      _                  => None,
+    }
+  }
 }
 
 #[test]
