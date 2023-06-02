@@ -12,9 +12,6 @@ use std::error;
 use std::fmt;
 use std::str::{self, FromStr};
 
-extern crate itertools;
-use itertools::Itertools;
-
 /// A single data element in an s-expression. Floats are excluded to ensure
 /// atoms may be used as keys in ordered and hashed data structures.
 ///
@@ -195,11 +192,12 @@ impl Sexp {
   pub fn into_map(self) -> Option<BTreeMap<String, Sexp>> {
     match self {
       Sexp::List(l) => {
-        if l.len() % 2 != 0 {
-          return None;
-        }
         let mut map = BTreeMap::new();
-        for (key, value) in l.into_iter().tuple_windows::<(Sexp, Sexp)>() {
+        for sub_l in l.into_iter() {
+          assert!(sub_l.is_list() && sub_l.list().len() == 2);
+          let mut sub_l = sub_l.into_list().unwrap();
+          let value = sub_l.remove(1);
+          let key = sub_l.remove(0);
           let key = key.into_atom()?.into_string()?;
           assert!(!map.contains_key(&key));
           map.insert(key, value);
