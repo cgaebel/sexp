@@ -14,3 +14,6 @@ keywords = [ "sexp", "parsing", "s-expression", "file-format" ]
 description = "A small, simple, self-contained, s-expression parser and pretty-printer."
 
 license = "MIT"
+
+[dependencies]
+itertools = "0.10.5"

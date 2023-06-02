@@ -7,9 +7,13 @@
 
 use std::borrow::Cow;
 use std::cmp;
+use std::collections::BTreeMap;
 use std::error;
 use std::fmt;
 use std::str::{self, FromStr};
+
+extern crate itertools;
+use itertools::Itertools;
 
 /// A single data element in an s-expression. Floats are excluded to ensure
 /// atoms may be used as keys in ordered and hashed data structures.
@@ -63,6 +67,14 @@ impl Atom {
     }
   }
 
+  /// Consume this atom and return its string, or None if it is not a string.
+  pub fn into_string(self) -> Option<String> {
+    match self {
+      Atom::S(s) => Some(s),
+      _          => None,
+    }
+  }
+
   /// Return the integer contained in this atom, panic if it is not an integer.
   pub fn int(&self) -> i64 {
     self.try_int().expect("not an int")
@@ -77,6 +89,15 @@ impl Atom {
     }
   }
 
+  /// Consume this atom and return its integer, or None if it is not an
+  /// integer.
+  pub fn into_int(self) -> Option<i64> {
+    match self {
+      Atom::I(i) => Some(i),
+      _          => None,
+    }
+  }
+
   /// Return the float contained in this atom, panic if it is not a float.
   pub fn float(&self) -> f64 {
     self.try_float().expect("not a float")
@@ -88,6 +109,14 @@ impl Atom {
     match self {
       &Atom::F(f) => Some(f),
       _           => None,
+    }
+  }
+
+  /// Consume this atom and return its float, or None if it is not a float.
+  pub fn into_float(self) -> Option<f64> {
+    match self {
+      Atom::F(f) => Some(f),
+      _          => None,
     }
   }
 }
@@ -132,6 +161,14 @@ impl Sexp {
     }
   }
 
+  /// Consume this s-expression and return its atom, or None if it is a list.
+  pub fn into_atom(self) -> Option<Atom> {
+    match self {
+      Sexp::Atom(a) => Some(a),
+      _             => None,
+    }
+  }
+
   /// Return the list contained in this s-expression, panic if it is an atom.
   pub fn list(&self) -> &Vec<Sexp> {
     self.try_list().expect(&format!("Expecting a list, got: {}", self))
@@ -143,6 +180,33 @@ impl Sexp {
     match self {
       &Sexp::List(ref l) => Some(l),
       _                  => None,
+    }
+  }
+
+  /// Consume this s-expression and return its list, or None if it is an atom.
+  pub fn into_list(self) -> Option<Vec<Sexp>> {
+    match self {
+      Sexp::List(l) => Some(l),
+      _             => None,
+    }
+  }
+
+  /// Turn s-expression list into a map from key value pairs.
+  pub fn into_map(self) -> Option<BTreeMap<String, Sexp>> {
+    match self {
+      Sexp::List(l) => {
+        if l.len() % 2 != 0 {
+          return None;
+        }
+        let mut map = BTreeMap::new();
+        for (key, value) in l.into_iter().tuple_windows::<(Sexp, Sexp)>() {
+          let key = key.into_atom()?.into_string()?;
+          assert!(!map.contains_key(&key));
+          map.insert(key, value);
+        }
+        Some(map)
+      },
+      _ => None,
     }
   }
 }
