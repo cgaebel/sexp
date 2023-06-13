@@ -7,6 +7,7 @@
 
 use std::borrow::Cow;
 use std::cmp;
+use std::collections::BTreeMap;
 use std::error;
 use std::fmt;
 use std::str::{self, FromStr};
@@ -23,6 +24,101 @@ pub enum Atom {
   F(f64),
 }
 
+
+impl Atom {
+  /// Returns true if this atom is a string.
+  pub fn is_string(&self) -> bool {
+    match self {
+      &Atom::S(_) => true,
+      _           => false,
+    }
+  }
+
+  /// Returns true if this atom is an integer.
+  pub fn is_int(&self) -> bool {
+    match self {
+      &Atom::I(_) => true,
+      _           => false,
+    }
+  }
+
+  /// Returns true if this atom is a float.
+  pub fn is_float(&self) -> bool {
+    match self {
+      &Atom::F(_) => true,
+      _           => false,
+    }
+  }
+
+  /// Return the string contained in this atom, panic if it is not a string.
+  pub fn string(&self) -> &str {
+    self.try_string().expect("not a string")
+  }
+
+  /// Try to return the string contained in this atom, or None if it is not a
+  /// string.
+  pub fn try_string(&self) -> Option<&str> {
+    match self {
+      &Atom::S(ref s) => Some(s),
+      _               => None,
+    }
+  }
+
+  /// Consume this atom and return its string, or None if it is not a string.
+  pub fn into_string(self) -> Option<String> {
+    match self {
+      Atom::S(s) => Some(s),
+      _          => None,
+    }
+  }
+
+  /// Return the integer contained in this atom, panic if it is not an integer.
+  pub fn int(&self) -> i64 {
+    self.try_int().expect("not an int")
+  }
+
+  /// Try to return the integer contained in this atom, or None if it is not an
+  /// integer.
+  pub fn try_int(&self) -> Option<i64> {
+    match self {
+      &Atom::I(i) => Some(i),
+      _           => None,
+    }
+  }
+
+  /// Consume this atom and return its integer, or None if it is not an
+  /// integer.
+  pub fn into_int(self) -> Option<i64> {
+    match self {
+      Atom::I(i) => Some(i),
+      _          => None,
+    }
+  }
+
+  /// Return the float contained in this atom, panic if it is not a float.
+  pub fn float(&self) -> f64 {
+    self.try_float().expect("not a float")
+  }
+
+  /// Try to return the float contained in this atom, or None if it is not a
+  /// float.
+  pub fn try_float(&self) -> Option<f64> {
+    match self {
+      &Atom::F(f) => Some(f),
+      _           => None,
+    }
+  }
+
+  /// Consume this atom and return its float, or None if it is not a float.
+  pub fn into_float(self) -> Option<f64> {
+    match self {
+      Atom::F(f) => Some(f),
+      _          => None,
+    }
+  }
+}
+
+
 /// An s-expression is either an atom or a list of s-expressions. This is
 /// similar to the data format used by lisp.
 #[derive(PartialEq, Clone, PartialOrd)]
@@ -30,6 +126,92 @@ pub enum Atom {
 pub enum Sexp {
   Atom(Atom),
   List(Vec<Sexp>),
+}
+
+impl Sexp {
+  /// Returns true if this s-expression is an atom.
+  pub fn is_atom(&self) -> bool {
+    match self {
+      Sexp::Atom(_) => true,
+      _             => false,
+    }
+  }
+
+  /// Returns true if this s-expression is a list.
+  pub fn is_list(&self) -> bool {
+    match *self {
+      Sexp::List(_) => true,
+      _             => false,
+    }
+  }
+
+  /// Return the atom contained in this s-expression, panic if it is a list.
+  pub fn atom(&self) -> &Atom {
+    self.try_atom().expect(&format!("Expecting an atom, got: {}", self))
+  }
+
+  /// Try to return the atom contained in this s-expression, or None if it is a
+  pub fn try_atom(&self) -> Option<&Atom> {
+    match self {
+      &Sexp::Atom(ref a) => Some(a),
+      _                  => None,
+    }
+  }
+
+  /// Consume this s-expression and return its atom, or None if it is a list.
+  pub fn into_atom(self) -> Option<Atom> {
+    match self {
+      Sexp::Atom(a) => Some(a),
+      _             => None,
+    }
+  }
+
+  /// Return the list contained in this s-expression, panic if it is an atom.
+  pub fn list(&self) -> &Vec<Sexp> {
+    self.try_list().expect(&format!("Expecting a list, got: {}", self))
+  }
+
+  /// Try to return the list contained in this s-expression, or None if it is an
+  /// atom.
+  pub fn try_list(&self) -> Option<&Vec<Sexp>> {
+    match self {
+      &Sexp::List(ref l) => Some(l),
+      _                  => None,
+    }
+  }
+
+  /// Consume this s-expression and return its list, or None if it is an atom.
+  pub fn into_list(self) -> Option<Vec<Sexp>> {
+    match self {
+      Sexp::List(l) => Some(l),
+      _             => None,
+    }
+  }
+
+  /// Turn s-expression list into a map from key value pairs.
+  pub fn into_map(self) -> Option<BTreeMap<String, Sexp>> {
+    match self {
+      Sexp::List(l) => {
+        let mut map = BTreeMap::new();
+        for sub_l in l.into_iter() {
+          assert!(sub_l.is_list() && sub_l.list().len() == 2, 
+            "Assertion to map failed (is_list {} len {:?}) on: {}", 
+            sub_l.is_list(), 
+            sub_l.try_list().map(|x| x.len()), 
+            sub_l.to_string().chars().take(100).collect::<String>()
+          );
+          let mut sub_l = sub_l.into_list().unwrap();
+          let value = sub_l.remove(1);
+          let key = sub_l.remove(0);
+          let key = key.into_atom()?.into_string()?;
+          assert!(!map.contains_key(&key));
+          map.insert(key, value);
+        }
+        Some(map)
+      },
+      _ => None,
+    }
+  }
 }
 
 #[test]
@@ -53,7 +235,7 @@ pub struct Error {
 
 impl error::Error for Error {
   fn description(&self) -> &str { self.message }
-  fn cause(&self) -> Option<&error::Error> { None }
+  fn cause(&self) -> Option<&dyn error::Error> { None }
 }
 
 /// Since errors are the uncommon case, they're boxed. This keeps the size of
@@ -165,7 +347,7 @@ fn peek(s: &str, pos: &usize) -> ERes<(char, usize)> {
 
 fn expect(s: &str, pos: &mut usize, c: char) -> ERes<()> {
   dbg("expect", pos);
-  let (ch, next) = try!(peek(s, pos));
+  let (ch, next) = peek(s, pos)?;
   *pos = next;
   if ch == c { Ok(()) } else { err("unexpected character", s, pos) }
 }
@@ -173,7 +355,7 @@ fn expect(s: &str, pos: &mut usize, c: char) -> ERes<()> {
 fn consume_until_newline(s: &str, pos: &mut usize) -> ERes<()> {
   loop {
     if *pos == s.len() { return Ok(()) }
-    let (ch, next) = try!(peek(s, pos));
+    let (ch, next) = peek(s, pos)?;
     *pos = next;
     if ch == '\n' { return Ok(()) }
   }
@@ -184,9 +366,9 @@ fn zspace(s: &str, pos: &mut usize) -> ERes<()> {
   dbg("zspace", pos);
   loop {
     if *pos == s.len() { return Ok(()) }
-    let (ch, next) = try!(peek(s, pos));
+    let (ch, next) = peek(s, pos)?;
 
-    if ch == ';'               { try!(consume_until_newline(s, pos)) }
+    if ch == ';'               { consume_until_newline(s, pos)? }
     else if ch.is_whitespace() { *pos = next; }
     else                       { return Ok(()) }
   }
@@ -196,15 +378,15 @@ fn parse_quoted_atom(s: &str, pos: &mut usize) -> ERes<Atom> {
   dbg("parse_quoted_atom", pos);
   let mut cs: String = String::new();
 
-  try!(expect(s, pos, '"'));
+  expect(s, pos, '"')?;
 
   loop {
-    let (ch, next) = try!(peek(s, pos));
+    let (ch, next) = peek(s, pos)?;
     if ch == '"' {
       *pos = next;
       break;
     } else if ch == '\\' {
-      let (postslash, nextnext) = try!(peek(s, &next));
+      let (postslash, nextnext) = peek(s, &next)?;
       if postslash == '"' || postslash == '\\' {
         cs.push(postslash);
       } else {
@@ -228,9 +410,9 @@ fn parse_unquoted_atom(s: &str, pos: &mut usize) -> ERes<Atom> {
 
   loop {
     if *pos == s.len() { break }
-    let (c, next) = try!(peek(s, pos));
+    let (c, next) = peek(s, pos)?;
 
-    if c == ';' { try!(consume_until_newline(s, pos)); break }
+    if c == ';' { consume_until_newline(s, pos)?; break }
     if c.is_whitespace() || c == '(' || c == ')' { break }
     cs.push(c);
     *pos = next;
@@ -241,7 +423,7 @@ fn parse_unquoted_atom(s: &str, pos: &mut usize) -> ERes<Atom> {
 
 fn parse_atom(s: &str, pos: &mut usize) -> ERes<Atom> {
   dbg("parse_atom", pos);
-  let (ch, _) = try!(peek(s, pos));
+  let (ch, _) = peek(s, pos)?;
 
   if ch == '"' { parse_quoted_atom  (s, pos) }
   else         { parse_unquoted_atom(s, pos) }
@@ -249,34 +431,34 @@ fn parse_atom(s: &str, pos: &mut usize) -> ERes<Atom> {
 
 fn parse_list(s: &str, pos: &mut usize) -> ERes<Vec<Sexp>> {
   dbg("parse_list", pos);
-  try!(zspace(s, pos));
-  try!(expect(s, pos, '('));
+  zspace(s, pos)?;
+  expect(s, pos, '(')?;
 
   let mut sexps: Vec<Sexp> = Vec::new();
 
   loop {
-    try!(zspace(s, pos));
-    let (c, next) = try!(peek(s, pos));
+    zspace(s, pos)?;
+    let (c, next) = peek(s, pos)?;
     if c == ')' {
       *pos = next;
       break;
     }
-    sexps.push(try!(parse_sexp(s, pos)));
+    sexps.push(parse_sexp(s, pos)?);
   }
 
-  try!(zspace(s, pos));
+  zspace(s, pos)?;
 
   Ok(sexps)
 }
 
 fn parse_sexp(s: &str, pos: &mut usize) -> ERes<Sexp> {
   dbg("parse_sexp", pos);
-  try!(zspace(s, pos));
-  let (c, _) = try!(peek(s, pos));
+  zspace(s, pos)?;
+  let (c, _) = peek(s, pos)?;
   let r =
-    if c == '(' { Ok(Sexp::List(try!(parse_list(s, pos)))) }
-    else        { Ok(Sexp::Atom(try!(parse_atom(s, pos)))) };
-  try!(zspace(s, pos));
+    if c == '(' { Ok(Sexp::List(parse_list(s, pos)?)) }
+    else        { Ok(Sexp::Atom(parse_atom(s, pos)?)) };
+  zspace(s, pos)?;
   r
 }
 
@@ -304,7 +486,7 @@ pub fn list(xs: &[Sexp]) -> Sexp {
 #[inline(never)]
 pub fn parse(s: &str) -> Result<Sexp, Box<Error>> {
   let mut pos = 0;
-  let ret = try!(parse_sexp(s, &mut pos));
+  let ret = parse_sexp(s, &mut pos)?;
   if pos == s.len() { Ok(ret) } else { err("unrecognized post-s-expression data", s, &pos) }
 }
 
@@ -352,10 +534,10 @@ impl fmt::Display for Sexp {
     match *self {
       Sexp::Atom(ref a) => write!(f, "{}", a),
       Sexp::List(ref xs) => {
-        try!(write!(f, "("));
+        write!(f, "(")?;
         for (i, x) in xs.iter().enumerate() {
           let s = if i == 0 { "" } else { " " };
-          try!(write!(f, "{}{}", s, x));
+          write!(f, "{}{}", s, x)?;
         }
         write!(f, ")")
       },
